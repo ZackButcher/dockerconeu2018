@@ -1,0 +1,119 @@
+#!/bin/bash
+
+content_old() {
+#  if [[ -z $1 || -z $2 ]]; then
+#    (>&2 echo error, no cluster CIDR ranges. Got primary: ${1}, Secondary: ${2})
+#    exit -1
+#  fi
+#
+#  local primaryGateway="127.0.0.1"
+#  if [[ -n "$3" ]]; then
+#    primaryGateway=$3
+#  else
+#    (>&2 echo no primary gateway IP address, using localhost)
+#  fi
+#
+#  local secondaryGateway="127.0.0.1"
+#  if [[ -n "$4" ]]; then
+#    secondaryGateway=$4
+#  else
+#    (>&2 echo no secondary gateway IP address, using localhost)
+#  fi
+
+
+    cat<<EOF
+global:
+  # Provides dns resolution for global services
+  podDNSSearchNamespaces:
+  - global
+  - "[[ valueOrDefault .DeploymentMeta.Namespace \"default\" ]].global"
+
+  multiCluster:
+    enabled: true
+
+  controlPlaneSecurityEnabled: true
+
+#  meshNetworks:
+#    primary:
+#      endpoints:
+#      - fromCidr: $1
+#      gateways:
+#      - address: $primaryGateway
+#        port: 15443
+#    secondary:
+#      endpoints:
+#      - fromCidr: $2
+#      gateways:
+#      - address: $secondaryGateway
+#        port: 15443
+
+# Multicluster with gateways requires a root CA
+# Cluster local CAs are bootstrapped with the root CA.
+security:
+  selfSigned: false
+
+# Provides dns resolution for service entries of form
+# name.namespace.global
+istiocoredns:
+  enabled: true
+
+gateways:
+  istio-egressgateway:
+    env:
+      # Needed to route traffic via egress gateway if desired.
+      ISTIO_META_REQUESTED_NETWORK_VIEW: "external"
+EOF
+}
+
+content() {
+    cat<<EOF
+global:
+  # Provides dns resolution for global services
+  podDNSSearchNamespaces:
+  - global
+  - "[[ valueOrDefault .DeploymentMeta.Namespace \"default\" ]].global"
+
+pilot:
+  traceSampling: 100.0
+
+grafana:
+  enabled: true
+
+tracing:
+  enabled: true
+
+istiocoredns:
+  enabled: true
+
+EOF
+}
+
+
+declare IP=""
+poll_external_ip() {
+    local cmd="kubectl get svc $2 -n istio-system -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' --context $1"
+    IP="$(eval ${cmd})"
+    while [[ -z "${IP}" ]]; do
+        IP="$(eval ${cmd})"
+        sleep 1;
+    done
+}
+
+CTX_A=$1
+CTX_B=$2
+
+#IP_A=$(kubectl cluster-info dump --context ${CTX_A} | sed -n -e 's/^.*cluster-cidr=//p' | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}(/[0-9]{1,2})?" | uniq)
+#IP_B=$(kubectl cluster-info dump --context ${CTX_B} | sed -n -e 's/^.*cluster-cidr=//p' | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}(/[0-9]{1,2})?" | uniq)
+#
+# if [[ "$3" != "bootstrap" ]]; then
+#   poll_external_ip ${CTX_A} istio-ingressgateway
+#   INGRESS_IP_A=${IP}
+#   poll_external_ip ${CTX_B} istio-ingressgateway
+#   INGRESS_IP_B=${IP}
+# else
+#   (>&2 echo 'in bootstrap mode, skipping ingress IP')
+# fi
+#
+#(>&2 echo primary ingress: ${INGRESS_IP_A})
+#(>&2 echo secondary ingress: ${INGRESS_IP_B})
+content ${IP_A} ${IP_B} ${INGRESS_IP_A} ${INGRESS_IP_B}

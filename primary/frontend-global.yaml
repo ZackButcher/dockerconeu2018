@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: frontend-global
+spec:
+  hosts:
+  - frontend.default.global
+  location: MESH_INTERNAL
+  ports:
+  - name: http
+    number: 80
+    protocol: http
+  resolution: STATIC
+  addresses:
+  - 127.255.0.1
+  endpoints:
+  # UPDATE PER YOUR DEPLOY
+  - address: 35.204.98.18
+    ports:
+      http: 15443
+

@@ -1,0 +1,48 @@
+#!/bin/bash
+CTX_A=$1
+CTX_B=$2
+declare IP=""
+
+# first param: kubeconfig context
+# second param: service name
+poll_external_ip() {
+    local cmd="kubectl get svc $2 -n istio-system -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' --context $1"
+    IP="$(eval ${cmd})"
+    while [[ -z "${IP}" ]]; do
+        IP="$(eval ${cmd})"
+        sleep 1;
+    done
+}
+
+
+# first param: kubeconfig context
+# second param: service name
+poll_cluster_ip() {
+    local cmd="kubectl get svc $2 -n istio-system -o=jsonpath='{.spec.clusterIP}' --context $1"
+    IP="$(eval ${cmd})"
+    while [[ -z "${IP}" ]]; do
+        IP="$(${cmd})"
+        sleep 1;
+    done
+}
+
+print() {
+    echo "$1 $2 external IP: $3"
+}
+
+poll_external_ip ${CTX_A} istio-ingressgateway
+export IP_A=${IP}
+
+poll_external_ip ${CTX_B} istio-ingressgateway
+export IP_B=${IP}
+
+poll_cluster_ip ${CTX_A} coredns
+export COREDNS_IP_A=${IP}
+
+poll_cluster_ip ${CTX_B} coredns
+export COREDNS_IP_B=${IP}
+
+print ${CTX_A} istio-ingressgateway ${IP_A}
+print ${CTX_B} istio-ingressgateway ${IP_B}
+print ${CTX_A} coredns ${COREDNS_IP_A}
+print ${CTX_B} coredns ${COREDNS_IP_B}

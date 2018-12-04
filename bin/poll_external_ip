@@ -1,0 +1,8 @@
+#!/bin/bash
+
+cmd="kubectl get svc $2 -n istio-system -o=jsonpath='{.status.loadBalancer.ingress[0].ip}' --context $1"
+IP="$(eval ${cmd})"
+while [[ -z "${IP}" ]]; do
+    IP="$(eval ${cmd})"
+    sleep 1;
+done

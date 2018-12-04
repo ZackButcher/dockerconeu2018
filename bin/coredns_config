@@ -1,0 +1,28 @@
+#!/bin/bash
+
+config () {
+  cat <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-dns
+  namespace: kube-system
+data:
+  stubDomains: |
+    {"global": ["$1"]}
+EOF
+}
+
+declare IP=""
+poll_cluster_ip() {
+  local cmd="kubectl get svc $2 -n istio-system -o=jsonpath='{.spec.clusterIP}' --context $1"
+  IP="$(eval ${cmd})"
+  while [[ -z "${IP}" ]]; do
+      IP="$(${cmd})"
+      sleep 1;
+  done
+}
+
+poll_cluster_ip $1 istiocoredns
+(>&2 echo CoreDNS IP in $1: ${IP})
+config ${IP}

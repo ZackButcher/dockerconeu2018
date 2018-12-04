@@ -1,0 +1,8 @@
+#!/bin/bash
+
+cmd="kubectl get svc $2 -n istio-system -o=jsonpath='{.spec.clusterIP}' --context $1"
+IP="$(eval ${cmd})"
+while [[ -z "${IP}" ]]; do
+    IP="$(${cmd})"
+    sleep 1;
+done
